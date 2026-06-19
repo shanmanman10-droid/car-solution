@@ -1,0 +1,1 @@
+{"name":"FixMyCar.ae","description":"Vehicle diagnosis application.","requestFramePermissions":["camera","microphone"],"majorCapabilities":["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]}
