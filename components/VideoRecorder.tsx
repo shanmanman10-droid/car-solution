@@ -6,10 +6,13 @@ export default function VideoRecorder({ onVideoRecorded }: { onVideoRecorded: (b
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordedVideoUrl, setRecordedVideoUrl] = useState<string | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     return () => {
@@ -19,16 +22,33 @@ export default function VideoRecorder({ onVideoRecorded }: { onVideoRecorded: (b
     };
   }, [stream]);
 
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setRecordedVideoUrl(url);
+      onVideoRecorded(file);
+    }
+  };
+
   const startCamera = async () => {
+    setCameraError(null);
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: { ideal: 'environment' } }, 
+        audio: true 
+      });
       setStream(mediaStream);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
       }
-    } catch (err) {
-      console.error("Error accessing camera:", err);
-      alert("Could not access camera. Please ensure permissions are granted.");
+    } catch (err: any) {
+      console.error("Error accessing camera/microphone:", err);
+      // Fallback to file upload immediately if camera fails
+      if (fileInputRef.current) {
+        fileInputRef.current.click();
+      }
+      setCameraError("Camera not found. Select a video file instead.");
     }
   };
 
@@ -72,17 +92,28 @@ export default function VideoRecorder({ onVideoRecorded }: { onVideoRecorded: (b
 
   return (
     <div className="flex flex-col items-center justify-center space-y-4 w-full">
+      <input 
+        type="file" 
+        accept="video/*" 
+        capture="environment"
+        ref={fileInputRef} 
+        onChange={handleFileUpload} 
+        className="hidden" 
+      />
       {!stream && !recordedVideoUrl && (
         <button
           type="button"
           onClick={startCamera}
-          className="h-40 w-full rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 flex flex-col items-center justify-center group hover:border-orange-500 transition-colors cursor-pointer"
+          className="h-40 w-full rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center relative group hover:border-orange-500 transition-colors cursor-pointer"
         >
           <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
              <Video className="w-6 h-6 text-orange-600" />
           </div>
-          <p className="text-sm font-bold text-slate-700">Record Video</p>
-          <p className="text-[10px] text-slate-400">Max 3 minutes</p>
+          <p className="text-sm font-bold text-gray-700">Record Video</p>
+          <p className="text-[10px] text-gray-400">Max 3 minutes</p>
+          {cameraError && (
+            <div className="absolute inset-x-2 bottom-2 text-center text-xs font-bold text-red-500 bg-red-50 rounded-full py-1 px-2 border border-red-100">{cameraError}</div>
+          )}
         </button>
       )}
 
@@ -134,7 +165,7 @@ export default function VideoRecorder({ onVideoRecorded }: { onVideoRecorded: (b
           <button
             type="button"
             onClick={retakeVideo}
-            className="absolute top-4 right-4 bg-white/90 text-slate-900 px-4 py-2 rounded-full text-sm font-bold shadow-lg hover:bg-white flex items-center gap-2"
+            className="absolute top-4 right-4 bg-white/90 text-gray-900 px-4 py-2 rounded-full text-sm font-bold shadow-lg hover:bg-white flex items-center gap-2"
           >
             <RefreshCw className="w-4 h-4" /> Retake
           </button>
